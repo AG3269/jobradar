@@ -1,0 +1,17 @@
+IMPORTANT: Place your resume.docx in this folder.
+
+The job search tool will automatically detect any .docx file in this folder.
+If your resume has a different name, update config/config.yaml:
+
+  resume:
+    folder: "./resumes"
+    filename: "your-resume-name.docx"
+
+The tool will use Azure AI Foundry to analyze your resume and extract:
+- Skills and technologies
+- Target job titles
+- Years of experience
+- Industry domains
+- Search keywords
+
+All of these are used to find and score matching jobs.

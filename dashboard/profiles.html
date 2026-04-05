@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JobRadar — Resume Profiles</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0c10; --surface: #111318; --surface2: #181c23; --surface3: #1e2330;
+      --border: #252b38; --border2: #2e3648;
+      --text: #e8eaf0; --text-muted: #6b7891; --text-dim: #3a4259;
+      --accent: #4af0a8; --accent-dim: #1a3d2e; --accent-glow: rgba(74,240,168,0.15);
+      --red: #ff5b5b; --red-dim: #3d1a1a;
+      --yellow: #f0c44a; --yellow-dim: #3d3010;
+      --blue: #4a9df0; --blue-dim: #1a2d3d;
+      --purple: #a84af0; --purple-dim: #2a1a3d;
+      --font-mono: 'Space Mono', monospace; --font-sans: 'DM Sans', sans-serif;
+      --radius: 10px; --radius-lg: 16px;
+    }
+    html { font-size: 14px; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);
+      pointer-events: none; z-index: 9999;
+    }
+
+    /* ─── Layout ─────────────────────────── */
+    .app { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ─── Sidebar ────────────────────────── */
+    .sidebar {
+      width: 220px; flex-shrink: 0;
+      background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .sidebar-logo { padding: 22px 20px 18px; border-bottom: 1px solid var(--border); }
+    .sidebar-logo .wordmark { font-family: var(--font-mono); font-size: 1.15rem; font-weight: 700; color: var(--accent); letter-spacing: -0.5px; }
+    .sidebar-logo .subtitle { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; letter-spacing: 0.05em; text-transform: uppercase; }
+    .sidebar-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
+    .nav-label { font-size: 0.62rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; padding: 0 10px; margin-bottom: 6px; }
+    .nav-section { margin-bottom: 20px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 10px; border-radius: 8px; cursor: pointer;
+      color: var(--text-muted); font-size: 0.85rem; font-weight: 500;
+      transition: all 0.15s; border: 1px solid transparent;
+      text-decoration: none;
+    }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: var(--accent-dim); color: var(--accent); border-color: rgba(74,240,168,0.2); }
+    .nav-item .icon { font-size: 1rem; width: 18px; text-align: center; }
+
+    /* ─── Main ───────────────────────────── */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .topbar {
+      padding: 16px 24px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 16px;
+      background: var(--surface); flex-shrink: 0;
+    }
+    .page-title { font-size: 1.1rem; font-weight: 600; }
+    .topbar-sub { font-size: 0.75rem; color: var(--text-muted); }
+
+    .content { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+
+    /* ─── Candidate Card ─────────────────── */
+    .candidate-card {
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-radius: var(--radius-lg); padding: 24px;
+      display: flex; gap: 24px; align-items: flex-start;
+    }
+    .candidate-avatar {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: var(--accent-dim); border: 2px solid var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-mono); font-size: 1.5rem; font-weight: 700;
+      color: var(--accent); flex-shrink: 0;
+    }
+    .candidate-info { flex: 1; }
+    .candidate-name { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+    .candidate-title { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px; }
+    .candidate-meta { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+    .meta-badge {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.75rem; color: var(--text-muted);
+    }
+    .meta-badge span { color: var(--text); font-weight: 600; }
+    .candidate-summary {
+      font-size: 0.85rem; line-height: 1.7; color: var(--text-muted);
+      background: var(--surface3); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px;
+    }
+
+    /* ─── Skills Section ─────────────────── */
+    .skills-section { margin-top: 16px; }
+    .skills-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); font-weight: 700; margin-bottom: 8px; }
+    .skill-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .skill-tag {
+      font-size: 0.72rem; padding: 4px 10px;
+      border-radius: 4px; background: var(--surface3);
+      color: var(--text-muted); border: 1px solid var(--border);
+    }
+
+    /* ─── Section Header ─────────────────── */
+    .section-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 14px;
+    }
+    .section-badge {
+      font-family: var(--font-mono); font-size: 0.65rem; font-weight: 700;
+      padding: 4px 10px; border-radius: 20px; text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .section-badge.p1 { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(74,240,168,0.3); }
+    .section-badge.p2 { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(240,196,74,0.3); }
+    .section-badge.p3 { background: var(--surface3); color: var(--text-muted); border: 1px solid var(--border2); }
+    .section-title-text { font-size: 1rem; font-weight: 700; }
+    .section-desc { font-size: 0.78rem; color: var(--text-muted); font-weight: 400; }
+
+    /* ─── Profile Cards ──────────────────── */
+    .profiles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+
+    .profile-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 18px;
+      transition: border-color 0.2s;
+    }
+    .profile-card:hover { border-color: var(--border2); }
+    .profile-card.p1 { border-left: 3px solid var(--accent); }
+    .profile-card.p2 { border-left: 3px solid var(--yellow); }
+    .profile-card.p3 { border-left: 3px solid var(--text-dim); }
+
+    .profile-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    .profile-title { font-size: 0.95rem; font-weight: 700; flex: 1; }
+    .profile-industry { font-size: 0.72rem; color: var(--text-muted); margin-top: 3px; }
+
+    .fit-score-badge {
+      font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700;
+      flex-shrink: 0; padding: 6px 12px; border-radius: 8px;
+    }
+    .fit-score-badge.excellent { color: var(--accent); background: var(--accent-dim); }
+    .fit-score-badge.good { color: var(--blue); background: var(--blue-dim); }
+    .fit-score-badge.fair { color: var(--yellow); background: var(--yellow-dim); }
+
+    .profile-rationale {
+      font-size: 0.8rem; color: var(--text-muted); line-height: 1.6;
+      margin-bottom: 14px; padding: 10px; background: var(--surface3);
+      border-radius: 8px; border: 1px solid var(--border);
+    }
+
+    .profile-subsection { margin-bottom: 12px; }
+    .profile-sublabel {
+      font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.1em;
+      font-weight: 700; color: var(--text-dim); margin-bottom: 6px;
+    }
+    .profile-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+    .profile-tag {
+      font-size: 0.7rem; padding: 3px 8px; border-radius: 4px;
+      background: var(--surface3); color: var(--text-muted); border: 1px solid var(--border);
+    }
+    .profile-tag.title { color: var(--blue); border-color: rgba(74,157,240,0.3); background: var(--blue-dim); }
+    .profile-tag.keyword { color: var(--text); }
+    .profile-tag.transferable { color: var(--accent); border-color: rgba(74,240,168,0.25); background: var(--accent-dim); }
+    .profile-tag.gap { color: var(--yellow); border-color: rgba(240,196,74,0.3); background: var(--yellow-dim); }
+
+    .upskill-box {
+      font-size: 0.78rem; line-height: 1.6; color: var(--text-muted);
+      border: 1px solid rgba(240,196,74,0.2); background: var(--yellow-dim);
+      border-radius: 8px; padding: 10px 12px; margin-top: 8px;
+    }
+    .upskill-box strong { color: var(--yellow); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 5px; }
+
+    /* ─── Strategy Card ──────────────────── */
+    .strategy-card {
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-radius: var(--radius); padding: 16px 20px;
+      font-size: 0.83rem; color: var(--text-muted); line-height: 1.7;
+    }
+    .strategy-card strong { color: var(--accent); }
+
+    /* ─── Target Roles + Keywords ─────────── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 680px) { .two-col { grid-template-columns: 1fr; } }
+
+    .list-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px;
+    }
+    .list-card-title {
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+      font-weight: 700; color: var(--text-muted); margin-bottom: 12px;
+      padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    }
+    .role-list { display: flex; flex-direction: column; gap: 4px; }
+    .role-list-item {
+      font-size: 0.78rem; color: var(--text-muted); padding: 5px 8px;
+      border-radius: 5px; display: flex; align-items: center; gap: 7px;
+    }
+    .role-list-item:nth-child(odd) { background: var(--surface3); }
+    .role-list-item::before { content: '→'; color: var(--accent); font-size: 0.7rem; flex-shrink: 0; }
+
+    /* ─── Loading / Empty ────────────────── */
+    .status-box {
+      padding: 60px 24px; text-align: center;
+      color: var(--text-dim); font-size: 0.9rem;
+    }
+    .status-box .icon { font-size: 3rem; margin-bottom: 12px; }
+    .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Timestamp ──────────────────────── */
+    .generated-at { font-size: 0.7rem; color: var(--text-dim); }
+
+    /* ─── Scrollbar ──────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+    /* ─── Industry Config Panel ──────────── */
+    .industry-config-card {
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-left: 3px solid var(--blue);
+      border-radius: var(--radius-lg); padding: 16px 20px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .industry-config-header {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+    }
+    .industry-config-title {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--blue); margin-bottom: 4px;
+    }
+    .industry-config-desc {
+      font-size: 0.75rem; color: var(--text-muted); line-height: 1.5;
+    }
+    .industry-tag-row { display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px; align-items: center; }
+    .industry-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 0.72rem; padding: 4px 10px; border-radius: 20px;
+      background: var(--blue-dim); color: var(--blue);
+      border: 1px solid rgba(74,157,240,0.3);
+    }
+    .industry-tag .rm {
+      font-size: 0.85rem; cursor: pointer; opacity: 0.55;
+      padding-left: 1px; line-height: 1;
+    }
+    .industry-tag .rm:hover { opacity: 1; }
+    .industry-add-row { display: flex; gap: 7px; }
+    .industry-input {
+      flex: 1; background: var(--surface3); border: 1px solid var(--border2);
+      border-radius: 8px; padding: 7px 12px; color: var(--text);
+      font-family: var(--font-sans); font-size: 0.8rem; outline: none;
+    }
+    .industry-input:focus { border-color: var(--blue); }
+    .industry-btn {
+      padding: 7px 14px; border-radius: 8px; font-family: var(--font-sans);
+      font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .industry-btn.add {
+      background: var(--surface3); border: 1px solid var(--border2); color: var(--text-muted);
+    }
+    .industry-btn.add:hover { border-color: var(--blue); color: var(--blue); }
+    .industry-btn.save {
+      background: var(--blue-dim); border: 1px solid var(--blue); color: var(--blue);
+    }
+    .industry-btn.save:hover { background: var(--blue); color: var(--bg); }
+    .industry-save-note { font-size: 0.68rem; color: var(--text-dim); align-self: center; }  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="wordmark">⬡ JobRadar</div>
+      <div class="subtitle">AI-Powered Job Search</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-label">Views</div>
+        <a class="nav-item" href="/"><span class="icon">◈</span> All Jobs</a>
+        <a class="nav-item active" href="/profiles.html"><span class="icon">◎</span> Resume Profiles</a>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <span class="page-title">Resume Profiles &amp; Analysis</span>
+      <span class="topbar-sub generated-at" id="generated-at"></span>
+      <button id="reload-btn" onclick="reloadProfile()" style="
+        margin-left: auto;
+        padding: 7px 16px;
+        background: var(--accent-dim);
+        border: 1px solid var(--accent);
+        border-radius: 8px;
+        color: var(--accent);
+        font-family: var(--font-sans);
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+      " onmouseover="this.style.background='var(--accent)';this.style.color='var(--bg)'" onmouseout="this.style.background='var(--accent-dim)';this.style.color='var(--accent)'">↻ Reload Profile</button>
+    </div>
+
+    <div class="content" id="content">
+      <div class="status-box"><div class="spinner"></div><br>Loading profiles...</div>
+    </div>
+  </main>
+</div>
+
+<script>
+const API = `http://${location.hostname}:${location.port || 5051}/api`;
+
+let priorityIndustries = [];
+
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function scoreClass(n) {
+  if (n >= 80) return 'excellent';
+  if (n >= 60) return 'good';
+  return 'fair';
+}
+
+function tags(arr, cls) {
+  return (arr || []).map(t => `<span class="profile-tag ${cls}">${esc(t)}</span>`).join('');
+}
+
+function renderCandidate(c, keywords) {
+  const initials = (c.name || '?').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+  return `
+    <div class="candidate-card">
+      <div class="candidate-avatar">${esc(initials)}</div>
+      <div class="candidate-info">
+        <div class="candidate-name">${esc(c.name)}</div>
+        <div class="candidate-title">${esc(c.current_title)}</div>
+        <div class="candidate-meta">
+          <div class="meta-badge">Experience: <span>${esc(c.years_experience)} years</span></div>
+          <div class="meta-badge">Seniority: <span>${esc(c.seniority_level)}</span></div>
+        </div>
+        <div class="candidate-summary">${esc(c.summary)}</div>
+        ${c.technical_skills && c.technical_skills.length ? `
+        <div class="skills-section">
+          <div class="skills-label">Technical Skills</div>
+          <div class="skill-tags">${(c.technical_skills).map(s => `<span class="skill-tag">${esc(s)}</span>`).join('')}</div>
+        </div>` : ''}
+      </div>
+    </div>`;
+}
+
+function renderProfileCard(p, priority) {
+  const score = p.fit_score || 0;
+  const sc = scoreClass(score);
+  return `
+    <div class="profile-card ${priority}">
+      <div class="profile-card-header">
+        <div>
+          <div class="profile-title">${esc(p.title)}</div>
+          <div class="profile-industry">${esc(p.industry || '')}</div>
+        </div>
+        <div class="fit-score-badge ${sc}">${score}<span style="font-size:0.65rem;font-weight:400">%</span></div>
+      </div>
+
+      ${p.rationale ? `<div class="profile-rationale">${esc(p.rationale)}</div>` : ''}
+
+      ${p.search_titles && p.search_titles.length ? `
+      <div class="profile-subsection">
+        <div class="profile-sublabel">Search Titles</div>
+        <div class="profile-tags">${tags(p.search_titles, 'title')}</div>
+      </div>` : ''}
+
+      ${p.keywords && p.keywords.length ? `
+      <div class="profile-subsection">
+        <div class="profile-sublabel">Keywords</div>
+        <div class="profile-tags">${tags(p.keywords, 'keyword')}</div>
+      </div>` : ''}
+
+      ${p.transferable_skills && p.transferable_skills.length ? `
+      <div class="profile-subsection">
+        <div class="profile-sublabel">Transferable Skills</div>
+        <div class="profile-tags">${tags(p.transferable_skills, 'transferable')}</div>
+      </div>` : ''}
+
+      ${p.skill_gaps && p.skill_gaps.length ? `
+      <div class="profile-subsection">
+        <div class="profile-sublabel">Skill Gaps</div>
+        <div class="profile-tags">${tags(p.skill_gaps, 'gap')}</div>
+      </div>` : ''}
+
+      ${p.upskilling_path ? `
+      <div class="upskill-box">
+        <strong>Upskilling Path</strong>
+        ${esc(p.upskilling_path)}
+      </div>` : ''}
+    </div>`;
+}
+
+function renderSection(profiles, priority, badgeCls, badgeLabel, titleText, descText) {
+  if (!profiles || !profiles.length) return '';
+  return `
+    <div>
+      <div class="section-header">
+        <span class="section-badge ${badgeCls}">${badgeLabel}</span>
+        <div>
+          <div class="section-title-text">${titleText}</div>
+          <div class="section-desc">${descText}</div>
+        </div>
+      </div>
+      <div class="profiles-grid">
+        ${profiles.map(p => renderProfileCard(p, priority)).join('')}
+      </div>
+    </div>`;
+}
+
+async function reloadProfile() {
+  const btn = document.getElementById('reload-btn');
+  btn.textContent = '↻ Reloading...';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/reload-profile`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('generated-at').textContent = 'Reloading resume… refresh in ~30s';
+      setTimeout(() => {
+        btn.textContent = '↻ Reload Profile';
+        btn.disabled = false;
+        loadProfiles();
+      }, 35000);
+    } else throw new Error();
+  } catch (e) {
+    btn.textContent = '↻ Reload Profile';
+    btn.disabled = false;
+    alert('Reload failed — make sure the dashboard server is running with Azure credentials.');
+  }
+}
+
+function renderIndustryTag(name, idx) {
+  return `<span class="industry-tag"><span>${esc(name)}</span><span class="rm" onclick="removeProfileIndustry(${idx})" title="Remove">×</span></span>`;
+}
+
+function renderIndustryTagList() {
+  const el = document.getElementById('profile-industry-tags');
+  if (!el) return;
+  if (!priorityIndustries.length) {
+    el.innerHTML = '<span style="font-size:0.72rem;color:var(--text-dim)">No industries configured — add one below</span>';
+    return;
+  }
+  el.innerHTML = priorityIndustries.map((n, i) => renderIndustryTag(n, i)).join('');
+}
+
+function removeProfileIndustry(idx) {
+  priorityIndustries.splice(idx, 1);
+  renderIndustryTagList();
+}
+
+function addProfileIndustry() {
+  const input = document.getElementById('profile-industry-input');
+  const val = input.value.trim();
+  if (!val) return;
+  if (!priorityIndustries.includes(val)) {
+    priorityIndustries.push(val);
+    renderIndustryTagList();
+  }
+  input.value = '';
+  input.focus();
+}
+
+async function saveProfileIndustries() {
+  const btn = document.getElementById('profile-industry-save-btn');
+  const note = document.getElementById('profile-industry-save-note');
+  btn.textContent = 'Saving…';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ high_priority_industries: priorityIndustries })
+    });
+    const d = await res.json();
+    if (d.success) {
+      btn.textContent = '✓ Saved';
+      if (note) { note.textContent = '✓ Saved — takes effect on next search run'; note.style.color = 'var(--accent)'; }
+      setTimeout(() => {
+        btn.textContent = '✓ Save Focus';
+        btn.disabled = false;
+        if (note) { note.textContent = 'Affects Priority 1/3 labeling on this page'; note.style.color = 'var(--text-dim)'; }
+      }, 2000);
+    } else throw new Error();
+  } catch(e) {
+    btn.textContent = '✓ Save Focus';
+    btn.disabled = false;
+    if (note) { note.textContent = '✗ Save failed'; note.style.color = 'var(--red)'; }
+  }
+}
+
+function renderIndustryConfigCard() {
+  const tagList = priorityIndustries.length
+    ? priorityIndustries.map((n, i) => renderIndustryTag(n, i)).join('')
+    : '<span style="font-size:0.72rem;color:var(--text-dim)">No industries configured — add one below</span>';
+  return `
+    <div class="industry-config-card">
+      <div class="industry-config-header">
+        <div>
+          <div class="industry-config-title">🏢 Industry Focus</div>
+          <div class="industry-config-desc">Profiles matching these industries are treated as <strong style="color:var(--accent)">Priority 1</strong> targets. Profiles outside this focus appear as <strong style="color:var(--text-muted)">Priority 3</strong> fallback. Changes persist to config.yaml.</div>
+        </div>
+      </div>
+      <div class="industry-tag-row" id="profile-industry-tags">${tagList}</div>
+      <div class="industry-add-row">
+        <input class="industry-input" id="profile-industry-input" type="text"
+               placeholder="Add industry (e.g. AI/ML, FinTech, Healthcare)"
+               onkeydown="if(event.key==='Enter') addProfileIndustry()" />
+        <button class="industry-btn add" onclick="addProfileIndustry()">+ Add</button>
+        <button class="industry-btn save" id="profile-industry-save-btn" onclick="saveProfileIndustries()">✓ Save Focus</button>
+        <span class="industry-save-note" id="profile-industry-save-note">Affects Priority 1/3 labeling on this page</span>
+      </div>
+    </div>`;
+}
+
+async function loadProfiles() {
+  const content = document.getElementById('content');
+  try {
+    const [profileRes, settingsRes] = await Promise.all([
+      fetch(`${API}/profiles`),
+      fetch(`${API}/settings`).catch(() => null)
+    ]);
+    if (!profileRes.ok) throw new Error(`HTTP ${profileRes.status}`);
+    const data = await profileRes.json();
+    const settings = settingsRes ? await settingsRes.json().catch(() => ({})) : {};
+    priorityIndustries = settings.high_priority_industries || [];
+
+    if (data.generated_at) {
+      document.getElementById('generated-at').textContent =
+        'Last analyzed: ' + new Date(data.generated_at).toLocaleString();
+    }
+
+    const candidate = data.candidate || {};
+    const profiles = data.search_profiles || {};
+    const p1 = profiles.priority_1_primary_non_telecom || [];
+    const p2 = profiles.priority_2_adjacent_pivots || [];
+    const p3 = profiles.priority_3_telecom_fallback || [];
+    const targetRoles = data.target_roles || [];
+    const keywords = data.search_keywords || [];
+    const strategy = data.search_strategy || '';
+
+    let html = '';
+
+    // Industry focus config card
+    html += renderIndustryConfigCard();
+
+    // Candidate block
+    if (candidate.name) {
+      html += renderCandidate(candidate, keywords);
+    }
+
+    // Strategy
+    if (strategy) {
+      html += `<div class="strategy-card">${strategy.replace(/Priority (\d)/g, '<strong>Priority $1</strong>')}</div>`;
+    }
+
+    // Dynamic P1 / P3 labels based on configured industries
+    const p1industryHint = priorityIndustries.length
+      ? priorityIndustries.slice(0, 3).join(', ') + (priorityIndustries.length > 3 ? '…' : '')
+      : 'transferable-skills focus';
+    const p3industryHint = priorityIndustries.length
+      ? `Outside focus: ${priorityIndustries.slice(0, 3).join(', ')}${priorityIndustries.length > 3 ? '…' : ''}`
+      : 'Domain-specific roles';
+
+    // Profile sections
+    html += renderSection(p1, 'p1', 'p1', 'Priority 1 — High',
+      'Primary Target Profiles',
+      `Best-fit roles — ${p1industryHint}`);
+    html += renderSection(p2, 'p2', 'p2', 'Priority 2 — Medium',
+      'Adjacent Pivot Profiles',
+      'High-potential roles with identified skill gaps and upskilling paths');
+    html += renderSection(p3, 'p3', 'p3', 'Priority 3 — Fallback',
+      'Domain / Industry Fallback',
+      p3industryHint);
+
+    // Target roles + keywords
+    if (targetRoles.length || keywords.length) {
+      html += `<div class="two-col">`;
+      if (targetRoles.length) {
+        html += `
+          <div class="list-card">
+            <div class="list-card-title">All Target Job Titles (${targetRoles.length})</div>
+            <div class="role-list">
+              ${targetRoles.map(r => `<div class="role-list-item">${esc(r)}</div>`).join('')}
+            </div>
+          </div>`;
+      }
+      if (keywords.length) {
+        html += `
+          <div class="list-card">
+            <div class="list-card-title">Search Keywords (${keywords.length})</div>
+            <div class="skill-tags" style="margin-top:4px">
+              ${keywords.map(k => `<span class="skill-tag">${esc(k)}</span>`).join('')}
+            </div>
+          </div>`;
+      }
+      html += `</div>`;
+    }
+
+    html += '<div style="height:40px"></div>';
+    content.innerHTML = html;
+
+  } catch (e) {
+    content.innerHTML = `
+      <div class="status-box">
+        <div class="icon">◎</div>
+        <p>No profile data found.<br><br>
+        Run a search first: click <strong style="color:var(--accent)">⟳ Run Search Now</strong> on the main dashboard,<br>
+        or run <code style="color:var(--accent)">python main.py --run-once</code></p>
+      </div>`;
+  }
+}
+
+loadProfiles();
+</script>
+</body>
+</html>

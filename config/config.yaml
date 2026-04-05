@@ -1,0 +1,103 @@
+azure:
+  api_key: ''
+  api_version: 2024-05-01-preview
+  endpoint: ''
+  model_name: gpt-4o
+companies:
+- careers_url: https://jobs.microsoft.com/en-us/search
+  enabled: true
+  name: Microsoft
+  search_params: ''
+- careers_url: https://careers.google.com/jobs/results/
+  enabled: true
+  name: Google
+  search_params: ''
+- careers_url: https://www.amazon.jobs/content/en/search
+  enabled: true
+  name: Amazon
+  search_params: ''
+- careers_url: https://jobs.apple.com/en-us/search
+  enabled: true
+  name: Apple
+  search_params: ''
+- careers_url: https://www.metacareers.com/jobs
+  enabled: true
+  name: Meta
+  search_params: ''
+- careers_url: https://explore.jobs.netflix.net/careers
+  enabled: true
+  name: Netflix
+  search_params: ''
+- careers_url: https://careers.salesforce.com/en/jobs/
+  enabled: true
+  name: Salesforce
+  search_params: ''
+- careers_url: https://openai.com/careers
+  enabled: true
+  name: OpenAI
+  search_params: ''
+- careers_url: https://boards.greenhouse.io/anthropic
+  enabled: true
+  name: Anthropic
+  search_params: ''
+job_boards:
+  builtin:
+    enabled: true
+    url: https://builtin.com/jobs
+  glassdoor:
+    enabled: false
+    url: ''
+  indeed:
+    enabled: true
+    url: https://www.indeed.com/jobs
+  linkedin:
+    enabled: true
+    url: https://www.linkedin.com/jobs/search
+  remotive:
+    enabled: true
+    url: https://remotive.com/api/remote-jobs
+  themuse:
+    enabled: true
+    url: https://www.themuse.com/api/public/jobs
+  wellfound:
+    enabled: true
+    url: https://wellfound.com/jobs
+logging:
+  level: INFO
+  log_file: ./logs/job_search.log
+  max_size_mb: 10
+output:
+  dashboard_port: 5051
+  keep_days: 30
+  results_folder: ./data/results
+  save_results_json: true
+resume:
+  filename: resume.docx
+  folder: ../resumes
+scheduler:
+  enabled: true
+  notify_on_new_jobs: true
+  run_time: 08:00
+  timezone: America/New_York
+search:
+  high_priority_industries:
+  - AI / Machine Learning
+  - Cloud Computing
+  - Enterprise Tech
+  - Cybersecurity
+  - FinTech
+  job_types:
+  - full-time
+  - contract
+  locations:
+  - Boston, MA
+  - San Francisco, CA
+  - Seattle, WA
+  - Redmond, WA
+  - San Diego, CA
+  max_jobs_per_source: 40
+  max_total_jobs: 400
+  min_match_score: 40
+  recent_days: 7
+  remote_ok: true
+  search_radius_miles: 50

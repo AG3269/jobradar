@@ -1,0 +1,16 @@
+# Default: normalize line endings to LF in the repo, CRLF on Windows checkout
+* text=auto eol=lf
+
+# Shell scripts must always use LF
+*.sh text eol=lf
+
+# Windows batch scripts use CRLF
+*.bat text eol=crlf
+
+# Binary files — do not mangle
+*.docx binary
+*.pdf  binary
+*.png  binary
+*.jpg  binary
+*.ico  binary
+*.db   binary

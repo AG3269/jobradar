@@ -1,0 +1,41 @@
+# Environment variables - NEVER commit these
+.env
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDE / OS
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+
+# Data — contains personal job search results, resume analysis, database
+data/job_search.db
+data/job_search.db-shm
+data/job_search.db-wal
+data/search_profiles.json
+data/results/
+
+# Keep custom_roles out of git (personal target roles)
+# Copy data/custom_roles.example.json → data/custom_roles.json to get started
+data/custom_roles.json
+!data/custom_roles.example.json
+
+# Logs
+logs/*.log
+
+# Resume files — contain personal PII
+resumes/*.docx
+resumes/*.pdf
+resumes/*.txt
+!resumes/PUT_YOUR_RESUME_HERE.txt
