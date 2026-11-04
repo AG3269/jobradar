@@ -40,6 +40,18 @@ companies:
   enabled: true
   name: Anthropic
   search_params: ''
+- careers_url: https://boards.greenhouse.io/stripe
+  enabled: true
+  name: Stripe
+  search_params: ''
+- careers_url: https://boards.greenhouse.io/databricks
+  enabled: true
+  name: Databricks
+  search_params: ''
+- careers_url: https://boards.greenhouse.io/notion
+  enabled: true
+  name: Notion
+  search_params: ''
 job_boards:
   builtin:
     enabled: true
@@ -81,20 +93,17 @@ scheduler:
   timezone: America/New_York
 search:
   high_priority_industries:
-  - AI / Machine Learning
   - Cloud Computing
   - Enterprise Tech
   - Cybersecurity
   - FinTech
+  - AI Infrastructure
   job_types:
   - full-time
   - contract
   locations:
   - Boston, MA
-  - San Francisco, CA
-  - Seattle, WA
-  - Redmond, WA
-  - San Diego, CA
+  - New York, NY
   max_jobs_per_source: 40
   max_total_jobs: 400
   min_match_score: 40

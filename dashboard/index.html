@@ -176,6 +176,14 @@
       animation: pulse 1.5s ease-in-out infinite;
     }
 
+    .search-status {
+      margin-top: 10px;
+      color: var(--text-muted);
+      font-size: 0.73rem;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
 
     /* ─── Main Content ─────────────────────────────────────── */
@@ -1193,9 +1201,10 @@
     <div class="custom-roles-panel" style="display:none" id="legacy-roles-panel"></div>
 
     <div class="sidebar-footer">
-      <button class="run-btn" id="run-btn" onclick="triggerSearch()">
+      <button class="run-btn" id="run-btn" onclick="triggerSearch()" disabled>
         ⟳ Run Search Now
       </button>
+      <div class="search-status" id="search-status" role="status" aria-live="polite"></div>
     </div>
   </aside>
 
@@ -1443,6 +1452,7 @@ const API = `http://${location.hostname}:${location.port || 5051}/api`;
 
 // ─── Init ──────────────────────────────────────────────────
 async function init() {
+  refreshSearchStatus();
   loadStats();  // also sets badge-skipped via dismissed_count
   loadHistory();
   loadCustomRoles();
@@ -2273,27 +2283,78 @@ async function generateCoverLetter(jobId) {
   }
 }
 
-async function triggerSearch() {
+let searchPollTimer = null;
+
+function setSearchUI(running, message, isError = false) {
   const btn = document.getElementById('run-btn');
-  btn.textContent = '⟳ Searching...';
-  btn.classList.add('running');
-  btn.disabled = true;
-  showToast('Job search started — this may take a few minutes');
+  btn.textContent = running ? '⟳ Searching...' : '⟳ Run Search Now';
+  btn.classList.toggle('running', running);
+  btn.disabled = running;
+  const status = document.getElementById('search-status');
+  status.textContent = message;
+  status.style.color = isError ? 'var(--red)' : 'var(--text-muted)';
+}
+
+function scheduleSearchPoll() {
+  clearTimeout(searchPollTimer);
+  searchPollTimer = setTimeout(() => refreshSearchStatus(true), 2000);
+}
+
+async function refreshSearchStatus(notify = false) {
+  try {
+    const res = await fetch(`${API}/search/status`);
+    if (!res.ok) throw new Error(`Status request failed (${res.status})`);
+    const data = await res.json();
+    if (!['idle', 'running', 'completed', 'failed'].includes(data.status)) {
+      throw new Error('Invalid search status response');
+    }
+    clearTimeout(searchPollTimer);
+    if (data.status === 'running') {
+      setSearchUI(true, data.message || 'Search in progress...');
+      scheduleSearchPoll();
+      return;
+    }
+
+    const failed = data.status === 'failed';
+    const message = failed
+      ? `Search failed: ${data.error || data.message}`
+      : data.status === 'completed'
+        ? `Search complete: ${data.summary.total_jobs_found} jobs matched.`
+        : '';
+    setSearchUI(false, message, failed);
+    if (notify && data.status === 'completed') {
+      await Promise.all([loadStats(), loadJobs(), loadHistory()]);
+      showToast(message);
+    } else if (notify && failed) {
+      showToast(message, true);
+    }
+  } catch (e) {
+    console.error('Could not check search status:', e);
+    const running = document.getElementById('run-btn').classList.contains('running');
+    setSearchUI(running, 'Unable to check search status. Retrying...', true);
+    scheduleSearchPoll();
+  }
+}
+
+async function triggerSearch() {
+  clearTimeout(searchPollTimer);
+  setSearchUI(true, 'Starting job search...');
 
   try {
-    await fetch(`${API}/search/run`, { method: 'POST' });
-    setTimeout(async () => {
-      await Promise.all([loadStats(), loadJobs()]);
-      showToast('✓ Search complete! Results updated.');
-      btn.textContent = '⟳ Run Search Now';
-      btn.classList.remove('running');
-      btn.disabled = false;
-    }, 30000); // Poll after 30s
+    const res = await fetch(`${API}/search/run`, { method: 'POST' });
+    const data = await res.json();
+    if (res.status === 409) {
+      await refreshSearchStatus(true);
+      return;
+    }
+    if (!res.ok) throw new Error(data.error || `Search request failed (${res.status})`);
+    showToast('Job search started — this may take several minutes');
+    await refreshSearchStatus(true);
   } catch (e) {
-    showToast('Server not running. Start: python main.py', true);
-    btn.textContent = '⟳ Run Search Now';
-    btn.classList.remove('running');
-    btn.disabled = false;
+    const message = `Could not start or confirm search: ${e.message}`;
+    setSearchUI(false, message, true);
+    showToast(message, true);
+    scheduleSearchPoll();
   }
 }
 

@@ -40,6 +40,14 @@ python main.py --dashboard  # then open http://localhost:5051
 
 Once the dashboard is open, click **⚙** (top-right) to change locations, job boards, and search limits — no config file editing needed.
 
+**Run Search Now** shows the current search stage and stays disabled until the
+background search actually finishes. Refreshing the page reconnects to an active
+search. Failures are shown below the button instead of reporting completion.
+Searches can take several minutes, especially when sites rate-limit requests or
+AI scoring is slow. Duplicate dashboard search requests are rejected.
+Azure scoring errors are logged and use keyword matching rather than assigning
+every affected job a zero score. Match details identify keyword-scored results.
+
 ---
 
 ## Features
@@ -88,8 +96,10 @@ Place your resume DOCX file in the `resumes/` folder:
 resumes/resume_2026.docx    ← example name, any .docx works
 ```
 
-> The `resumes/` folder lives **one level above** `job_search_app/` by default (`../resumes`).  
+> The default `../resumes` path is relative to `config/config.yaml`, so it resolves to the app's `resumes/` folder.
 > Change `resume.folder` in `config/config.yaml` if you use a different path.
+> Without a resume, the app logs a warning and uses a placeholder candidate;
+> add your actual resume for meaningful matching scores.
 
 ### 3. Configure Azure AI Foundry
 
@@ -100,6 +110,10 @@ AZURE_API_KEY=your_api_key_here
 AZURE_MODEL_NAME=gpt-4o
 AZURE_API_VERSION=2025-04-01-preview
 ```
+
+Both Azure OpenAI resource roots (`*.openai.azure.com`) and Cognitive Services
+resource roots (`*.cognitiveservices.azure.com`) automatically use the configured
+deployment route. Fully qualified deployment endpoints are preserved.
 
 **Where to find these values:**
 1. Go to [Azure AI Foundry](https://ai.azure.com)
@@ -286,7 +300,7 @@ job_search_app/
     └── job_search.log           # Application logs
 ```
 
-> **Note:** `resumes/` is at `../resumes` relative to `job_search_app/` by default.
+> **Note:** `resume.folder` is resolved relative to the directory containing `config/config.yaml`.
 
 ---
 
@@ -367,7 +381,23 @@ Set `enabled: false` to temporarily pause scraping a company without removing it
 | POST | `/api/settings` | Save settings incl. `high_priority_industries` and `companies` array (persisted to config.yaml) |
 | GET | `/api/custom-roles` | Get custom search roles |
 | POST | `/api/custom-roles` | Save custom search roles |
-| POST | `/api/search/run` | Trigger a background job search |
+| POST | `/api/search/run` | Start a background search (`202`); reject overlapping dashboard runs (`409`) |
+| GET | `/api/search/status` | Current state (`idle`, `running`, `completed`, `failed`), progress message, timestamps, error, and completed summary |
+
+Search status is tracked by the running server process. Restarting the server
+interrupts an active dashboard search; completed jobs and run history remain in
+SQLite.
+
+### Search regression tests
+
+```powershell
+python -m unittest test_search -v
+node --test test_search_ui.js
+python test_job_radar.py
+```
+
+The focused Python and JavaScript tests run without network calls or Azure
+credentials. The JavaScript tests use Node's built-in test runner.
 
 ---
 
@@ -385,9 +415,11 @@ Tested with:
 
 | Issue | Solution |
 |-------|----------|
-| "No resume found" | Check `resume.folder` in config.yaml — default is `../resumes` (sibling of `job_search_app/`) |
+| "No resume found" | Put a DOCX in the app's `resumes/` folder; `resume.folder` defaults to `../resumes` relative to the config directory |
 | Dashboard shows old/wrong title | Add your target role to `data/custom_roles.json` or click ↻ Reload Profile |
 | "Azure client failed" | Verify endpoint, API key, and model deployment name in `.env` |
+| Azure scoring returns HTTP 404 | Use your Azure resource root or full deployment URL, and verify `AZURE_MODEL_NAME` is the deployment name |
+| Search takes longer than 30 seconds | Read the stage below **Run Search Now**; the button remains disabled until the server finishes |
 | Dashboard blank / no jobs | Run a search first: `python main.py --run-once` |
 | No jobs from Indeed | Indeed blocks scraping (HTTP 401); LinkedIn and Built In are most reliable |
 | `--dashboard` crashes from wrong directory | Fixed — paths are resolved relative to main.py, not CWD |

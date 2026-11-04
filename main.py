@@ -13,6 +13,7 @@ import logging
 import argparse
 from datetime import datetime
 from pathlib import Path
+from typing import Callable, Optional
 from dotenv import load_dotenv
 
 # Add scripts to path
@@ -95,7 +96,11 @@ def init_llm_client(config: dict):
         return None
 
 
-def run_job_search(config: dict, extra_roles: list = None) -> dict:
+def run_job_search(
+    config: dict,
+    extra_roles: list = None,
+    progress_callback: Optional[Callable[[str], None]] = None,
+) -> dict:
     """
     Main job search pipeline:
     1. Load resume
@@ -105,6 +110,11 @@ def run_job_search(config: dict, extra_roles: list = None) -> dict:
     5. Save to database
     6. Return summary
     """
+    def report_progress(message: str) -> None:
+        logger.info(message)
+        if progress_callback is not None:
+            progress_callback(message)
+
     start_time = time.time()
     run_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     logger.info(f"{'='*60}")
@@ -113,7 +123,7 @@ def run_job_search(config: dict, extra_roles: list = None) -> dict:
 
     # ── Step 1: Load Resume ────────────────────────────────────────
     llm_client = init_llm_client(config)
-    logger.info("Loading resume...")
+    report_progress("Loading resume...")
     resume_data = load_resume(config, llm_client)
 
     if resume_data.get("name"):
@@ -200,7 +210,7 @@ def run_job_search(config: dict, extra_roles: list = None) -> dict:
         _jp["_custom_count"] = len(custom_roles)
 
     # ── Step 2: Scrape Jobs ─────────────────────────────────────────
-    logger.info("Searching for jobs...")
+    report_progress("Searching job boards and company career pages...")
     raw_jobs = search_all_sources(config, resume_data)
     logger.info(f"Found {len(raw_jobs)} unique job postings")
 
@@ -210,7 +220,9 @@ def run_job_search(config: dict, extra_roles: list = None) -> dict:
     board_jobs = [j for j in raw_jobs if j.get("source") in ("Indeed", "LinkedIn", "Built In")]
 
     enriched = 0
-    for job in company_jobs[:30]:  # Limit to avoid being too slow
+    description_jobs = company_jobs[:30]
+    for index, job in enumerate(description_jobs, start=1):
+        report_progress(f"Fetching job descriptions ({index}/{len(description_jobs)})...")
         if not job.get("description") or len(job.get("description", "")) < 200:
             desc = fetch_job_description(job.get("url", ""))
             if desc:
@@ -225,7 +237,7 @@ def run_job_search(config: dict, extra_roles: list = None) -> dict:
 
     # ── Step 4: Score & Rank ─────────────────────────────────────
     min_score = config.get("search", {}).get("min_match_score", 40)
-    logger.info(f"Scoring {len(all_jobs)} jobs (min score: {min_score})...")
+    report_progress(f"Scoring {len(all_jobs)} jobs...")
 
     scored_jobs = score_jobs_batch(
         all_jobs,
@@ -238,6 +250,7 @@ def run_job_search(config: dict, extra_roles: list = None) -> dict:
     ranked_jobs = rank_jobs(scored_jobs)
 
     # ── Step 5: Save to Database ───────────────────────────────────
+    report_progress("Saving search results...")
     new_count, updated_count = db.upsert_jobs(ranked_jobs)
     logger.info(f"Database: {new_count} new jobs, {updated_count} updated")
 
@@ -270,8 +283,9 @@ def run_job_search(config: dict, extra_roles: list = None) -> dict:
             "jobs": ranked_jobs[:100],
         }, f, indent=2, default=str)
 
-    # ── Print Results Summary ──────────────────────────────────────
-    print_summary(summary, ranked_jobs[:10])
+    # The dashboard receives the summary through its status endpoint.
+    if progress_callback is None:
+        print_summary(summary, ranked_jobs[:10])
 
     return summary
 

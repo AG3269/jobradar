@@ -7,6 +7,8 @@ import os
 import sys
 import json
 import logging
+import threading
+from copy import deepcopy
 from datetime import datetime
 from flask import Flask, jsonify, request, send_from_directory
 try:
@@ -26,6 +28,16 @@ SEARCH_PROFILES_FILE = os.path.join(os.path.dirname(__file__), "../data/search_p
 
 # Holds the fully-loaded config (with .env credentials) passed in from main.py at startup.
 _live_config: dict = {}
+
+_search_lock = threading.Lock()
+_search_state = {
+    "status": "idle",
+    "message": "No search running",
+    "error": None,
+    "summary": None,
+    "started_at": None,
+    "finished_at": None,
+}
 
 app = Flask(__name__, static_folder="../dashboard")
 if _has_cors:
@@ -312,31 +324,65 @@ def reload_profile():
 
 # ─── Search Trigger ─────────────────────────────────────────────────────────────
 
+def _update_search_state(**updates):
+    with _search_lock:
+        _search_state.update(updates)
+
+
+@app.route("/api/search/status", methods=["GET"])
+def get_search_status():
+    """Return the actual state of the dashboard's background search."""
+    with _search_lock:
+        return jsonify(deepcopy(_search_state))
+
+
 @app.route("/api/search/run", methods=["POST"])
 def trigger_search():
     """Manually trigger a job search run."""
-    import threading
+    with _search_lock:
+        if _search_state["status"] == "running":
+            return jsonify({"error": "A job search is already running"}), 409
+        _search_state.update(
+            status="running", message="Starting job search...", error=None,
+            summary=None, started_at=datetime.now().isoformat(), finished_at=None,
+        )
 
     def run_search_background():
         try:
-            # Use the live config stored at server startup — it already has .env credentials.
-            # Fall back to loading config fresh if for some reason it wasn't stored.
-            config = _live_config or _load_config_fresh()
-
             sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             import main as main_module
             main_module.config_global = config
-            main_module.run_job_search(config)
+            summary = main_module.run_job_search(
+                config,
+                progress_callback=lambda message: _update_search_state(message=message),
+            )
+            _update_search_state(
+                status="completed", message="Search complete", summary=summary,
+                finished_at=datetime.now().isoformat(),
+            )
         except Exception as e:
             logger.error(f"Background search failed: {e}", exc_info=True)
+            _update_search_state(
+                status="failed", message="Job search failed", error=str(e),
+                finished_at=datetime.now().isoformat(),
+            )
 
-    thread = threading.Thread(target=run_search_background, daemon=True)
-    thread.start()
-    return jsonify({"success": True, "message": "Job search started in background"})
+    try:
+        config = deepcopy(_live_config) if _live_config else _load_config_fresh()
+        thread = threading.Thread(target=run_search_background, daemon=True)
+        thread.start()
+    except Exception as e:
+        logger.error(f"Could not start background search: {e}", exc_info=True)
+        _update_search_state(
+            status="failed", message="Could not start job search", error=str(e),
+            finished_at=datetime.now().isoformat(),
+        )
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"success": True, "message": "Job search started in background"}), 202
 
 
 def _load_config_fresh() -> dict:
-    """Emergency fallback: load config from disk (may lack .env credentials)."""
+    """Load standalone configuration with .env credentials and a stable path base."""
     import yaml
     from pathlib import Path
     from dotenv import load_dotenv
@@ -345,6 +391,7 @@ def _load_config_fresh() -> dict:
     config_path = os.path.join(os.path.dirname(__file__), "../config/config.yaml")
     with open(config_path) as f:
         config = yaml.safe_load(f)
+    config["_config_dir"] = os.path.dirname(os.path.abspath(config_path))
     azure = config.setdefault("azure", {})
     for env_key, cfg_key in [
         ("AZURE_ENDPOINT", "endpoint"), ("AZURE_API_KEY", "api_key"),

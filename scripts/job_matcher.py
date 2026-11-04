@@ -39,7 +39,7 @@ def score_jobs_batch(
             job["match_level"] = match_data.get("match_level", "unknown")
             job["apply_priority"] = match_data.get("apply_priority", "low")
         except Exception as e:
-            logger.debug(f"Scoring failed for {job.get('title')}: {e}")
+            logger.warning(f"Scoring failed for {job.get('title')}; using keyword matching: {e}")
             # Fall back to keyword matching
             fallback = _score_by_keywords(job, resume_data)
             job.update(fallback)

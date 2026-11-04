@@ -7,6 +7,7 @@ import logging
 import json
 import re
 from typing import Optional
+from urllib.parse import urlsplit
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +35,12 @@ class AzureAIFoundryClient:
             from azure.ai.inference import ChatCompletionsClient
             from azure.core.credentials import AzureKeyCredential
 
-            # Azure OpenAI endpoints require /openai/deployments/{model} in the path
             endpoint = self.endpoint.rstrip("/")
-            if "openai.azure.com" in endpoint and "/openai/deployments/" not in endpoint:
+            hostname = (urlsplit(endpoint).hostname or "").lower()
+            if (
+                hostname.endswith((".openai.azure.com", ".cognitiveservices.azure.com"))
+                and not urlsplit(endpoint).path.strip("/")
+            ):
                 endpoint = f"{endpoint}/openai/deployments/{self.model_name}"
 
             kwargs = {
@@ -188,16 +192,7 @@ Return JSON:
             return result
         except Exception as e:
             logger.error(f"LLM job scoring failed for {job.get('title')}: {e}")
-            return {
-                "score": 0,
-                "match_level": "unknown",
-                "matching_skills": [],
-                "missing_skills": [],
-                "strengths": [],
-                "concerns": ["LLM scoring failed"],
-                "recommendation": "Review manually",
-                "apply_priority": "low",
-            }
+            raise
 
     def generate_cover_letter_outline(self, resume_data: dict, job: dict) -> str:
         """Generate a cover letter outline for a specific job."""

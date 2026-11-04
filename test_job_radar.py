@@ -702,14 +702,13 @@ def test_llm_score_range():
 test("score_job_match score is in 0-100 range", test_llm_score_range)
 
 def test_llm_score_failure_graceful():
-    """When LLM fails, should return a default dict (not raise)."""
+    """Let the batch scorer use its keyword fallback rather than a false zero."""
     client, _ = make_mock_llm(side_effect=Exception("Network error"))
     job = {"title": "Engineer", "company": "Co", "description": "test"}
-    result = client.score_job_match(SAMPLE_RESUME_DATA, job)
-    assert result["score"] == 0
-    assert "LLM scoring failed" in str(result.get("concerns", []))
+    with unittest.TestCase().assertRaisesRegex(Exception, "Network error"):
+        client.score_job_match(SAMPLE_RESUME_DATA, job)
 
-test("score_job_match fails gracefully on LLM error", test_llm_score_failure_graceful)
+test("score_job_match propagates LLM errors to the batch fallback", test_llm_score_failure_graceful)
 
 def test_llm_complete_json_strips_fences():
     """complete_json should handle markdown-wrapped JSON."""
